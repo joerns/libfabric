@@ -141,6 +141,7 @@ typedef struct fid *fid_t;
 #define FI_TRANSMIT		FI_SEND
 #define FI_REMOTE_READ		(1ULL << 12)
 #define FI_REMOTE_WRITE		(1ULL << 13)
+#define MY_PHYS_ADDR		(1ULL << 14)
 
 #define FI_MULTI_RECV		(1ULL << 16)
 #define FI_REMOTE_CQ_DATA	(1ULL << 17)

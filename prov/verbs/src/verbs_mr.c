@@ -82,8 +82,9 @@ struct fi_ibv_mr_internal_ops fi_ibv_mr_internal ##type## ops = {			\
 static inline struct ibv_mr *
 fi_ibv_mr_reg_ibv_mr(struct fi_ibv_domain *domain, void *buf,
 		     size_t len, int fi_ibv_access)
-{	
+{
 #if defined HAVE_VERBS_EXP_H
+	printf("using phys addr mr_reg 3\n");
 	struct ibv_exp_reg_mr_in in = {
 		.pd		= domain->pd,
 		.addr		= buf,
@@ -91,6 +92,11 @@ fi_ibv_mr_reg_ibv_mr(struct fi_ibv_domain *domain, void *buf,
 		.exp_access 	= fi_ibv_access,
 		.comp_mask	= 0,
 	};
+	if(fi_ibv_access & MY_PHYS_ADDR) {
+		in.addr = NULL;
+		in.length = 0;
+		in.exp_access |= IBV_EXP_ACCESS_PHYSICAL_ADDR;
+	}
 	if (domain->use_odp)
 		in.exp_access |= IBV_EXP_ACCESS_RELAXED |
 				 IBV_EXP_ACCESS_ON_DEMAND;
@@ -362,7 +368,7 @@ static int fi_ibv_mr_cache_close(fid_t fid)
 {
 	struct fi_ibv_mem_desc *md =
 		container_of(fid, struct fi_ibv_mem_desc, mr_fid.fid);
-	
+
 	fi_ibv_common_cache_dereg(md);
 
 	return FI_SUCCESS;
