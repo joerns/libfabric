@@ -81,10 +81,9 @@ struct fi_ibv_mr_internal_ops fi_ibv_mr_internal ##type## ops = {			\
 
 static inline struct ibv_mr *
 fi_ibv_mr_reg_ibv_mr(struct fi_ibv_domain *domain, void *buf,
-		     size_t len, int fi_ibv_access)
+		     size_t len, uint64_t fi_ibv_access)
 {
 #if defined HAVE_VERBS_EXP_H
-	printf("using phys addr mr_reg 3\n");
 	struct ibv_exp_reg_mr_in in = {
 		.pd		= domain->pd,
 		.addr		= buf,
@@ -92,10 +91,9 @@ fi_ibv_mr_reg_ibv_mr(struct fi_ibv_domain *domain, void *buf,
 		.exp_access 	= fi_ibv_access,
 		.comp_mask	= 0,
 	};
-	if(fi_ibv_access & MY_PHYS_ADDR) {
+	if(in.exp_access & IBV_EXP_ACCESS_PHYSICAL_ADDR) {
 		in.addr = NULL;
 		in.length = 0;
-		in.exp_access |= IBV_EXP_ACCESS_PHYSICAL_ADDR;
 	}
 	if (domain->use_odp)
 		in.exp_access |= IBV_EXP_ACCESS_RELAXED |
@@ -133,7 +131,7 @@ static struct fi_ops fi_ibv_mr_ops = {
 };
 
 static inline
-int fi_ibv_mr_reg_common(struct fi_ibv_mem_desc *md, int fi_ibv_access,
+int fi_ibv_mr_reg_common(struct fi_ibv_mem_desc *md, uint64_t fi_ibv_access,
 			 const void *buf, size_t len, void *context)
 {
 	/* ops should be set in special functions */
@@ -168,6 +166,8 @@ int fi_ibv_mr_regattr_check_args(struct fid *fid,
 				 const struct fi_mr_attr *attr,
 				 uint64_t flags)
 {
+	uint64_t allowed_flags = MY_PHYS_ADDR;
+	flags &= ~allowed_flags;
 	if (OFI_UNLIKELY(flags))
 		return -FI_EBADFLAGS;
 	if (OFI_UNLIKELY(fid->fclass != FI_CLASS_DOMAIN))
@@ -181,10 +181,10 @@ int fi_ibv_mr_regattr_check_args(struct fid *fid,
 	return FI_SUCCESS;
 }
 
-static inline int
+static inline uint64_t
 fi_ibv_mr_ofi2ibv_access(uint64_t ofi_access, struct fi_ibv_domain *domain)
 {
-	int ibv_access = 0;
+	uint64_t ibv_access = 0;
 
 	/* Enable local write access by default for FI_EP_RDM which hides local
 	 * registration requirements. This allows to avoid buffering or double
@@ -217,6 +217,10 @@ fi_ibv_mr_ofi2ibv_access(uint64_t ofi_access, struct fi_ibv_domain *domain)
 			      IBV_ACCESS_REMOTE_WRITE |
 			      IBV_ACCESS_REMOTE_ATOMIC;
 
+	/* Local modification to support physical addresses */
+	if (ofi_access & MY_PHYS_ADDR) {
+		ibv_access |= IBV_EXP_ACCESS_PHYSICAL_ADDR;
+	}
 	return ibv_access;
 }
 
